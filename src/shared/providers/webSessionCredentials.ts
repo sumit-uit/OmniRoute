@@ -356,10 +356,20 @@ export const WEB_SESSION_CREDENTIAL_REQUIREMENTS = {
   "conol-web": {
     kind: "cookie",
     credentialName: "__Secure-better-auth.session_token",
-    placeholder:
-      "__Secure-better-auth.session_token=... or full Cookie header from conol.ai",
+    placeholder: "__Secure-better-auth.session_token=... or full Cookie header from conol.ai",
     acceptsFullCookieHeader: true,
     storageKeys: ["cookie", "__Secure-better-auth.session_token"],
+  },
+  "outlier-ai": {
+    kind: "cookie",
+    credentialName: "_session + _csrf (both required)",
+    placeholder:
+      "_session=...; _csrf=... (both cookies from playground.outlier.ai/chat after Google login)",
+    acceptsFullCookieHeader: true,
+    storageKeys: ["cookie", "_session", "_csrf"],
+    hintKey: "outlierAiWebCookieHint",
+    hintFallback:
+      "Open playground.outlier.ai/chat, sign in with Google, then open DevTools → Network → filter 'callback'. Find the /auth/callback response and copy both _session and _csrf cookies from Set-Cookie headers. Paste the full Cookie header or both values separated by semicolon. Both cookies are required.",
   },
 } satisfies Record<string, WebSessionCredentialRequirement> &
   Record<keyof typeof WEB_COOKIE_PROVIDERS, WebSessionCredentialRequirement>;

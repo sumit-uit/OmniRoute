@@ -13,16 +13,20 @@ complementary; operators should know which one they are looking at.
 
 - **Scope:** the buffered-body/heap path for `POST /v1/chat/completions`. Guards
   against heap amplification from large coding-agent bodies (#4380).
-- **Gate:** **always on.** Each distinct API key (hashed) — or `anonymous` — gets its
-  own lane with `CHAT_MAX_HEAVY_IN_FLIGHT` capacity, so one session's burst cannot
-  starve another session's heavyweight slot.
+- **Gate:** **always on.** **Process-wide budget** (`CHAT_MAX_HEAVY_IN_FLIGHT`, default `1`).
+  Per-request session identity (hashed API key or `anonymous`) is used **only as a fairness
+  scheduling key** — waiters are grouped per session and served round-robin against the
+  **shared** budget, so one connection's burst cannot starve others (#9654, #10110).
+  There are **no per-session lanes**; the pre-#10110 design multiplied the process bound
+  by up to 64 lanes and is no longer in effect.
 - **Tuning:**
-  - `OMNIROUTE_CHAT_VIRTUAL_TTL_MS` — idle-lane eviction (default 60000)
-  - `OMNIROUTE_CHAT_VIRTUAL_MAX_SESSIONS` — lane count cap (default 64)
+  - `OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT` — process-wide heavyweight concurrency (default `1`)
   - `OMNIROUTE_CHAT_ADMISSION_QUEUE_MS` — queue-wait before 503 (default 2000)
   - `OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES` — queued-bytes heap valve (default 4 MB)
+  - `OMNIROUTE_CHAT_VIRTUAL_TTL_MS` — deprecated no-op since #10110 (accepted for compat)
+  - `OMNIROUTE_CHAT_VIRTUAL_MAX_SESSIONS` — deprecated no-op since #10110 (accepted for compat)
 - **Reports:** not in `GET /api/monitoring/health` today; observable via
-  `PerConnectionAdmissionController.snapshot()` (sessionId hash, activeHeavy, idleMs).
+  `PerConnectionAdmissionController.snapshot()` (opaque scheduler keys, activeHeavy, queuedBytes, waiting, lanes).
 
 ## 2. Adaptive runtime virtual lanes (`open-sse/services/admission`)
 

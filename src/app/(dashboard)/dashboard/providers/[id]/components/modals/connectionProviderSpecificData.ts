@@ -37,6 +37,10 @@ type FormData = QuotaScrapingFieldValues &
     tunnelId: string;
     connectorName: string;
     runtimeKey?: string;
+    outlierCsrfToken: string;
+    outlierConversationId: string;
+    outlierModelName: string;
+    outlierModelId: string;
   };
 type ProviderSpecificData = Record<string, unknown>;
 
@@ -111,6 +115,20 @@ export function buildAddProviderSpecificData(options: {
     if (formData.tunnelId.trim()) data.tunnelId = formData.tunnelId.trim();
     if (formData.connectorName.trim()) data.connectorName = formData.connectorName.trim();
   }
+  if (provider === "outlier-ai") {
+    if (formData.outlierCsrfToken.trim()) {
+      data.csrfToken = formData.outlierCsrfToken.trim();
+    }
+    if (formData.outlierConversationId.trim()) {
+      data.conversationId = formData.outlierConversationId.trim();
+    }
+    if (formData.outlierModelName.trim()) {
+      data.modelName = formData.outlierModelName.trim();
+    }
+    if (formData.outlierModelId.trim()) {
+      data.modelId = formData.outlierModelId.trim();
+    }
+  }
   return Object.keys(data).length > 0 ? data : undefined;
 }
 
@@ -184,5 +202,11 @@ export function assignEditApiKeyProviderSpecificData(options: {
   if (o.provider === "chatgpt-web-codex") {
     o.target.tunnelId = o.formData.tunnelId.trim() || undefined;
     o.target.connectorName = o.formData.connectorName.trim() || undefined;
+  }
+  if (o.provider === "outlier-ai") {
+    o.target.csrfToken = o.formData.outlierCsrfToken.trim() || undefined;
+    o.target.conversationId = o.formData.outlierConversationId.trim() || undefined;
+    o.target.modelName = o.formData.outlierModelName.trim() || undefined;
+    o.target.modelId = o.formData.outlierModelId.trim() || undefined;
   }
 }

@@ -577,4 +577,19 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     requiresRestart: false,
     warningLevel: "caution",
   },
+
+  // ──────────────── Chat Admission (1) ────────────────
+  {
+    key: "CHAT_MAX_HEAVY_IN_FLIGHT",
+    label: "Chat Max Heavy In-Flight",
+    description:
+      "Maximum concurrent heavyweight chat requests admitted before returning 503 chat_admission_busy. This is a local memory/heap guard. Increase cautiously — each additional slot increases concurrent V8 heap use and OOM risk. Default 1.",
+    descriptionI18nKey: "featureFlagChatMaxHeavyInFlightDescription",
+    category: "runtime",
+    defaultValue: "1",
+    type: "enum",
+    enumValues: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "16", "20", "24", "32"],
+    requiresRestart: false,
+    warningLevel: "caution",
+  },
 ];

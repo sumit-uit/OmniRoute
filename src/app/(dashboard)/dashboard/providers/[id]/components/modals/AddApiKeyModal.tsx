@@ -136,6 +136,10 @@ export default function AddApiKeyModal({
     tunnelId: "",
     runtimeKey: "",
     connectorName: "OmniRoute Codex",
+    outlierCsrfToken: "",
+    outlierConversationId: "",
+    outlierModelName: "claude-haiku-4-5-20251001",
+    outlierModelId: "695eb23bebfe65cbcfb1c911",
   });
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
@@ -322,6 +326,20 @@ export default function AddApiKeyModal({
               connectorName: isChatGptWebCodex
                 ? formData.connectorName.trim() || undefined
                 : undefined,
+              outlierCsrfToken:
+                provider === "outlier-ai"
+                  ? formData.outlierCsrfToken.trim() || undefined
+                  : undefined,
+              outlierConversationId:
+                provider === "outlier-ai"
+                  ? formData.outlierConversationId.trim() || undefined
+                  : undefined,
+              outlierModelName:
+                provider === "outlier-ai"
+                  ? formData.outlierModelName.trim() || undefined
+                  : undefined,
+              outlierModelId:
+                provider === "outlier-ai" ? formData.outlierModelId.trim() || undefined : undefined,
             }),
           });
           const data = await res.json();
@@ -848,6 +866,48 @@ export default function AddApiKeyModal({
                 spellCheck={false}
                 autoCapitalize="off"
               />
+            )}
+            {provider === "outlier-ai" && (
+              <>
+                <Input
+                  label="X-CSRF-Token (Required)"
+                  value={formData.outlierCsrfToken}
+                  onChange={(e) => setFormData({ ...formData, outlierCsrfToken: e.target.value })}
+                  placeholder="base64value:base64value"
+                  hint="Copy from DevTools → Network tab after login. Find any POST request to playground.outlier.ai, then copy the X-CSRF-Token header value (has colon separator). This is different from the _csrf cookie value."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Conversation ID (Required)"
+                  value={formData.outlierConversationId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, outlierConversationId: e.target.value })
+                  }
+                  placeholder="6aa707ad22bec8dda5249ac0"
+                  hint="Go to playground.outlier.ai/chat, start a conversation, then copy the ID from the URL (playground.outlier.ai/conversation/{ID})"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Model Name (e.g., claude-haiku-4-5-20251001, gpt-4o, gemini-2.5-pro)"
+                  value={formData.outlierModelName}
+                  onChange={(e) => setFormData({ ...formData, outlierModelName: e.target.value })}
+                  placeholder="claude-haiku-4-5-20251001"
+                  hint="The model identifier. Available models: Claude (Haiku/Sonnet/Opus), GPT-4o, Gemini, Grok, etc. Check playground.outlier.ai/chat for your account's available models."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Model ID (Optional - auto-detected if blank)"
+                  value={formData.outlierModelId}
+                  onChange={(e) => setFormData({ ...formData, outlierModelId: e.target.value })}
+                  placeholder="Leave blank for auto-detection"
+                  hint="The Outlier internal model ID (optional). Only needed if model name doesn't auto-resolve. To find it: Open DevTools → Network tab → Switch model in chat → Look for request payload with 'modelId' field. Most models work without this."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </>
             )}
             {isGooglePse && (
               <Input

@@ -150,6 +150,12 @@ export default function EditConnectionModal({
     runtimeKey: "",
     connectorName: stringField(connectionProviderSpecificData?.connectorName) || "OmniRoute Codex",
     m365Tier: normalizeM365TierValue(connectionProviderSpecificData?.tier) as M365TierValue,
+    outlierCsrfToken: stringField(connectionProviderSpecificData?.csrfToken),
+    outlierConversationId: stringField(connectionProviderSpecificData?.conversationId),
+    outlierModelName:
+      stringField(connectionProviderSpecificData?.modelName) || "claude-haiku-4-5-20251001",
+    outlierModelId:
+      stringField(connectionProviderSpecificData?.modelId) || "695eb23bebfe65cbcfb1c911",
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -214,6 +220,7 @@ export default function EditConnectionModal({
   const isLocalSelfHostedProvider = !!localProviderMetadata;
   const isGooglePse = provider === "google-pse-search";
   const isChatGptWebCodex = provider === "chatgpt-web-codex";
+  const isOutlierAi = provider === "outlier-ai";
   const isM365TierCapable = isM365TierCapableProvider(provider);
   const webSessionCredential = getWebSessionCredentialRequirement(provider);
   const isNoAuthWebSessionCredential = webSessionCredential?.kind === "none";
@@ -365,6 +372,12 @@ export default function EditConnectionModal({
         connectorName:
           stringField(connection.providerSpecificData?.connectorName) || "OmniRoute Codex",
         m365Tier: normalizeM365TierValue(connection.providerSpecificData?.tier) as M365TierValue,
+        outlierCsrfToken: stringField(connection.providerSpecificData?.csrfToken),
+        outlierConversationId: stringField(connection.providerSpecificData?.conversationId),
+        outlierModelName:
+          stringField(connection.providerSpecificData?.modelName) || "claude-haiku-4-5-20251001",
+        outlierModelId:
+          stringField(connection.providerSpecificData?.modelId) || "695eb23bebfe65cbcfb1c911",
       });
       const existing = connection.providerSpecificData?.extraApiKeys;
       setExtraApiKeys(Array.isArray(existing) ? existing : []);
@@ -454,6 +467,12 @@ export default function EditConnectionModal({
           runtimeKey: isChatGptWebCodex ? formData.runtimeKey.trim() || undefined : undefined,
           tunnelId: isChatGptWebCodex ? formData.tunnelId.trim() || undefined : undefined,
           connectorName: isChatGptWebCodex ? formData.connectorName.trim() || undefined : undefined,
+          outlierCsrfToken: isOutlierAi ? formData.outlierCsrfToken.trim() || undefined : undefined,
+          outlierConversationId: isOutlierAi
+            ? formData.outlierConversationId.trim() || undefined
+            : undefined,
+          outlierModelName: isOutlierAi ? formData.outlierModelName.trim() || undefined : undefined,
+          outlierModelId: isOutlierAi ? formData.outlierModelId.trim() || undefined : undefined,
         }),
       });
       const data = await res.json();
@@ -554,6 +573,18 @@ export default function EditConnectionModal({
                 tunnelId: isChatGptWebCodex ? formData.tunnelId.trim() || undefined : undefined,
                 connectorName: isChatGptWebCodex
                   ? formData.connectorName.trim() || undefined
+                  : undefined,
+                outlierCsrfToken: isOutlierAi
+                  ? formData.outlierCsrfToken.trim() || undefined
+                  : undefined,
+                outlierConversationId: isOutlierAi
+                  ? formData.outlierConversationId.trim() || undefined
+                  : undefined,
+                outlierModelName: isOutlierAi
+                  ? formData.outlierModelName.trim() || undefined
+                  : undefined,
+                outlierModelId: isOutlierAi
+                  ? formData.outlierModelId.trim() || undefined
                   : undefined,
               }),
             });
@@ -1007,6 +1038,49 @@ export default function EditConnectionModal({
                     )}
                   </div>
                 )}
+              </div>
+            )}
+            {isOutlierAi && (
+              <div className="space-y-3 rounded-lg border border-border bg-surface/40 p-3">
+                <p className="text-sm font-medium text-text-main">Outlier Playground</p>
+                <Input
+                  label="X-CSRF-Token (Required)"
+                  value={formData.outlierCsrfToken}
+                  onChange={(e) => setFormData({ ...formData, outlierCsrfToken: e.target.value })}
+                  placeholder="base64value:base64value"
+                  hint="Copy from DevTools → Network tab after login. Find any POST request to playground.outlier.ai, then copy the X-CSRF-Token header value (has colon separator)."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Conversation ID (Required)"
+                  value={formData.outlierConversationId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, outlierConversationId: e.target.value })
+                  }
+                  placeholder="6aa707ad22bec8dda5249ac0"
+                  hint="Go to playground.outlier.ai/chat, start a conversation, then copy the ID from the URL (playground.outlier.ai/conversation/{ID})"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Model Name (e.g., claude-haiku-4-5-20251001, gpt-4o, gemini-2.5-pro)"
+                  value={formData.outlierModelName}
+                  onChange={(e) => setFormData({ ...formData, outlierModelName: e.target.value })}
+                  placeholder="claude-haiku-4-5-20251001"
+                  hint="Available models: Claude (Haiku/Sonnet/Opus), GPT-4o, Gemini, Grok, etc. For tool-calling capability, use: gpt-4o, claude-opus-4-6, gemini-2.5-pro, or grok models."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <Input
+                  label="Model ID (Optional - auto-detected if blank)"
+                  value={formData.outlierModelId}
+                  onChange={(e) => setFormData({ ...formData, outlierModelId: e.target.value })}
+                  placeholder="Leave blank for auto-detection"
+                  hint="The Outlier internal model ID (optional). Only needed if model name doesn't auto-resolve. To find: DevTools → Network → switch model in chat → look for 'modelId' in request payload. Most models work without this."
+                  autoComplete="off"
+                  spellCheck={false}
+                />
               </div>
             )}
             {isGooglePse && (

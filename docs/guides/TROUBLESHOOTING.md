@@ -18,17 +18,18 @@ Common problems and solutions for OmniRoute.
 
 **New to OmniRoute?** Start here — these solve 90% of problems:
 
-| I see this              | What it means                       | What to do                                                                                        |
-| ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
-| "Can't connect"         | OmniRoute isn't running             | Run `omniroute` or `docker restart omniroute`                                                     |
-| "Invalid API key"       | Your key is wrong or expired        | Re-copy the key from the provider's website                                                       |
-| "Rate limit exceeded"   | You're sending too many requests    | Wait 1 minute, or use `model: "auto"` for automatic fallback                                      |
-| "Quota exceeded"        | You've used up your free/paid quota | Connect more providers, or use free providers (Kiro, Pollinations)                                |
-| "Slow responses"        | Provider is busy or far away        | Use `model: "auto/fast"` or connect a faster provider (Groq, Cerebras)                            |
-| "Wrong provider used"   | `auto` picked a different provider  | That's normal! `auto` picks the best one. Force a specific provider with `model: "openai/gpt-4o"` |
-| "502 Bad Gateway"       | Provider is down                    | Wait and retry, or use `model: "auto"` to switch providers                                        |
-| "401 Unauthorized"      | Your credentials are wrong          | Check your API key or re-authenticate with OAuth                                                  |
-| "429 Too Many Requests" | Rate limited                        | Wait 1 minute, or connect more providers                                                          |
+| I see this                | What it means                       | What to do                                                                                                                                      |
+| ------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Can't connect"           | OmniRoute isn't running             | Run `omniroute` or `docker restart omniroute`                                                                                                   |
+| "Invalid API key"         | Your key is wrong or expired        | Re-copy the key from the provider's website                                                                                                     |
+| "Rate limit exceeded"     | You're sending too many requests    | Wait 1 minute, or use `model: "auto"` for automatic fallback                                                                                    |
+| "Quota exceeded"          | You've used up your free/paid quota | Connect more providers, or use free providers (Kiro, Pollinations)                                                                              |
+| "Slow responses"          | Provider is busy or far away        | Use `model: "auto/fast"` or connect a faster provider (Groq, Cerebras)                                                                          |
+| "Wrong provider used"     | `auto` picked a different provider  | That's normal! `auto` picks the best one. Force a specific provider with `model: "openai/gpt-4o"`                                               |
+| "502 Bad Gateway"         | Provider is down                    | Wait and retry, or use `model: "auto"` to switch providers                                                                                      |
+| "401 Unauthorized"        | Your credentials are wrong          | Check your API key or re-authenticate with OAuth                                                                                                |
+| "429 Too Many Requests"   | Rate limited                        | Wait 1 minute, or connect more providers                                                                                                        |
+| "503 chat_admission_busy" | Heavyweight admission busy          | Retry with backoff; it's a local backpressure guard, not a provider error. See [Heavyweight Admission Busy](#heavyweight-admission-busy) below. |
 
 **Still stuck?** See the [detailed troubleshooting](#detailed-troubleshooting) below, or ask on [Discord](https://discord.gg/U47eFqAXCn).
 
@@ -62,7 +63,7 @@ Set these in the OmniRoute process environment (the daemon, e.g. via the LaunchA
 
 **How to verify it worked**: run your agent/cron twice in quick succession and confirm both succeed. Before the fix, the second run typically throws `429`/`401`. After the fix, failures (if any) are retried transparently and the call completes. You can also `curl /monitoring/health` and watch the `rateLimitedUntil` field on the provider connections and the `circuitBreakers.providerBreakers[].state` for the affected providers — the state is one of `CLOSED`, `DEGRADED`, `OPEN`, or `HALF_OPEN` (see `src/shared/utils/circuitBreaker.ts`), and a provider that keeps failing will flip `CLOSED → DEGRADED → OPEN` before the reset window lets a probe through (`HALF_OPEN`).
 
-**If you still see 429**: the active account for that provider has genuinely exhausted its *quota* (not just rate). Add a second account for the same provider in the OmniRoute dashboard → Providers → Accounts, or mix in another free provider (e.g. `routeway`, `auggie`). Rotation only helps with transient rate/400/401; a hard quota exhaustion requires a second credential or a different provider.
+**If you still see 429**: the active account for that provider has genuinely exhausted its _quota_ (not just rate). Add a second account for the same provider in the OmniRoute dashboard → Providers → Accounts, or mix in another free provider (e.g. `routeway`, `auggie`). Rotation only helps with transient rate/400/401; a hard quota exhaustion requires a second credential or a different provider.
 
 **If you see 403 on vision models (`auto/vision`, `bazaarlink/*`)**: the connected account lacks a paid plan that includes vision, or the API key has insufficient permissions. Verify in the provider dashboard that the key scope includes vision/multimodal, or connect a paid tier account and keep it as the vision target.
 
@@ -96,6 +97,53 @@ The warnings come from stale peer-dependency ranges in third-party packages Omni
 | Docker `curl: (56) Recv failure: Connection reset by peer` | Your Docker port bind may be landing on IPv6. Use `-p 127.0.0.1:20128:20128` to force IPv4, or test with `curl -4`. See [Docker IPv6](#docker-ipv6) below |
 | Antivirus quarantines `README.md`                          | False positive — see [Antivirus false positives](#antivirus-false-positives) below                                                                        |
 | Kaspersky flags the Desktop app as a Trojan                | Behavioral false positive on the unsigned installer — see [Antivirus false positives](#antivirus-false-positives) below                                   |
+
+---
+
+## Heavyweight Admission Busy (`503 chat_admission_busy`)
+
+<a name="heavyweight-admission-busy"></a>
+
+**Symptom:** The chat completions endpoint returns a retryable `503` response with error code `chat_admission_busy` and message `Chat admission capacity is temporarily unavailable. Retry shortly.` (or `Structurally heavy chat request capacity is busy; retry shortly.` with `reason: "structure_limit"`).
+
+**What this means:** This is **deliberate local backpressure** inside OmniRoute — **not** an upstream provider failure, rate limit, or quota exhaustion. It is a fail-safe to prevent V8 heap exhaustion and container/host OOM termination when multiple long-context requests would amplify memory simultaneously.
+
+**Why this happens:**
+
+- Each process reserves limited "heavyweight" capacity before parsing/translating/compressing large request bodies
+- Default capacity: `1` concurrent heavyweight request per process (`OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT=1`)
+- A request is "heavyweight" when it has ≥200 messages, ≥64 tools, ≥32,000 estimated tokens, or exceeds structure-inspection bounds
+- The lease is held for the **entire lifetime of an SSE response** (streaming)
+- When capacity is busy, requests wait up to `OMNIROUTE_CHAT_ADMISSION_QUEUE_MS` (default 2000ms) before returning this 503
+
+**Common misconceptions:**
+
+| Misconception                                                                         | Reality                                                                            |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| "Provider is down"                                                                    | No — this is OmniRoute's internal guard, upstream never sees the request           |
+| "Dashboard Settings → Resilience → Request Queue → Concurrent Requests controls this" | **False** — that setting governs a separate provider request-queue mechanism       |
+| "It's a rate limit"                                                                   | No — it's a memory/heap guard with a bounded wait, not a token-bucket rate limiter |
+
+**Fix / Tuning:**
+
+1. **Retry first** — Clients should honor `Retry-After` and use exponential backoff. Note that with the default queue wait (2s), a request already waited before the 503, so client backoff should exceed that.
+2. **If normal traffic repeatedly hits this** — cautiously raise `OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT` from its default of `1`. Increase one step at a time, restart OmniRoute after each change, and observe memory headroom under load. **Every additional slot increases concurrent V8 heap use and OOM risk.** No value is universally safe; validate against your traffic and memory limits.
+3. **Prefer widening the wait** — Increase `OMNIROUTE_CHAT_ADMISSION_QUEUE_MS` (e.g., to 5000–10000) over raising the in-flight limit when bursts are short. Waiting costs latency; an extra concurrent heavyweight request costs heap residency for the whole request lifetime.
+4. **Monitor** — Current heavyweight lease occupancy is not yet surfaced in the dashboard. Watch for `chat_admission_busy` in logs/metrics as a signal to tune.
+
+**Environment variables:**
+
+| Variable                                    | Default | Purpose                                               |
+| ------------------------------------------- | ------- | ----------------------------------------------------- |
+| `OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT`        | `1`     | Max concurrent heavyweight requests (per process)     |
+| `OMNIROUTE_CHAT_ADMISSION_QUEUE_MS`         | `2000`  | Max wait for a slot before 503 (0 = immediate reject) |
+| `OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES` | `4MB`   | Heap valve: max buffered bytes across all waiters     |
+| `OMNIROUTE_CHAT_LARGE_BODY_BYTES`           | `256KB` | Byte threshold that triggers heavyweight admission    |
+| `OMNIROUTE_CHAT_HEAVY_MESSAGE_COUNT`        | `200`   | Message count threshold for structural heavyweight    |
+| `OMNIROUTE_CHAT_HEAVY_TOOL_COUNT`           | `64`    | Tool count threshold for structural heavyweight       |
+| `OMNIROUTE_CHAT_HEAVY_ESTIMATED_TOKENS`     | `32000` | Estimated token threshold for structural heavyweight  |
+
+See the [Environment Reference](../reference/ENVIRONMENT.md) for the authoritative admission settings. Loosening the heavyweight classification thresholds can let expensive requests bypass this guard and is riskier than a cautious in-flight increase.
 
 ---
 

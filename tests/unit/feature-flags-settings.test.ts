@@ -30,7 +30,7 @@ const {
   isControlPlaneProxyDirectFallbackEnabled,
 } = await import("../../src/shared/utils/featureFlags.ts");
 
-const EXPECTED_FEATURE_FLAG_COUNT = 48;
+const EXPECTED_FEATURE_FLAG_COUNT = 49;
 
 // ──────────────────────────────────────────────────────
 // Test group 1 — Flag definitions registry

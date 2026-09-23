@@ -17,6 +17,7 @@
 
 import { CORS_HEADERS } from "../utils/cors";
 import { createHash } from "crypto";
+import { resolveFeatureFlag } from "../utils/featureFlags";
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(String(value), 10);
@@ -39,7 +40,7 @@ export const CHAT_HARD_MAX_BODY_BYTES = parsePositiveInt(
 );
 
 export const CHAT_MAX_HEAVY_IN_FLIGHT = parsePositiveInt(
-  process.env.OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT,
+  resolveFeatureFlag("CHAT_MAX_HEAVY_IN_FLIGHT"),
   1
 );
 

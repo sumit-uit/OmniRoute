@@ -150,6 +150,15 @@ interface BuildHealthPayloadOptions {
   };
   /** Optional injected public adaptive-admission snapshot; projected, never raw-spread. */
   adaptiveAdmission?: AdaptiveAdmissionPublicSnapshot | null;
+  /** Optional chat body admission (heavyweight) snapshot for observability. */
+  chatAdmission?: {
+    activeHeavy: number;
+    maxHeavyInFlight: number;
+    queuedBytes: number;
+    maxQueuedBytes: number;
+    waiting: number;
+    lanes: ReadonlyArray<{ key: string; waiting: number }>;
+  } | null;
 }
 
 function limitMonitors(monitors: QuotaMonitorSnapshot[], maxItems = 8): QuotaMonitorSnapshot[] {
@@ -290,6 +299,7 @@ export function buildHealthPayload({
   activeSessionsByKey = {},
   credentialHealth,
   adaptiveAdmission = null,
+  chatAdmission = null,
   buildSha = null,
 }: BuildHealthPayloadOptions) {
   const timestamp = new Date().toISOString();
@@ -389,6 +399,16 @@ export function buildHealthPayload({
     sessions: buildSessionsSummary({ activeSessions, activeSessionsByKey }),
     credentialHealth, // may be undefined if credentialHealth module not loaded
     adaptiveAdmission: projectAdaptiveAdmissionSummary(adaptiveAdmission),
+    chatAdmission: chatAdmission
+      ? {
+          activeHeavy: chatAdmission.activeHeavy,
+          maxHeavyInFlight: chatAdmission.maxHeavyInFlight || 1,
+          queuedBytes: chatAdmission.queuedBytes,
+          maxQueuedBytes: chatAdmission.maxQueuedBytes || 4 * 1024 * 1024,
+          waiting: chatAdmission.waiting,
+          lanes: chatAdmission.lanes,
+        }
+      : null,
     dedup: {
       inflightRequests,
     },

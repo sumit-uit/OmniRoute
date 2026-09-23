@@ -25,6 +25,7 @@ import {
 } from "@/app/api/v1/_shared/mediaGenerationRoute";
 import type { MediaGenerationResultLike } from "@/app/api/v1/_shared/mediaGenerationRoute";
 import { getSpecialtyModelsResponse } from "@/app/api/v1/_shared/specialtyCatalog";
+import { getComboByName } from "@/lib/db/combos";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,18 @@ async function postHandler(request, context) {
   // Enforce API key policies (model restrictions + budget limits)
   const policy = await enforceApiKeyPolicy(request, body.model);
   if (policy.rejection) return policy.rejection;
+
+  // Detect combo name and divert to full video combo execution. Mirrors the
+  // images route (#9239): checks before the provider/model parse below so we
+  // skip straight to combo resolution instead of failing on "Invalid video
+  // model" for a bare combo name (no "/").
+  if (body.model && typeof body.model === "string" && !body.model.includes("/")) {
+    const combo = await getComboByName(body.model as string);
+    if (combo) {
+      const { executeVideoCombo } = await import("@omniroute/open-sse/services/videoCombo");
+      return executeVideoCombo(body.model as string, body, { request, policy }, startTime, log);
+    }
+  }
 
   // Parse model to get provider
   let { provider, model: requestedModel } = parsedModel;

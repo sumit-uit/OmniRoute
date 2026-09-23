@@ -5,6 +5,7 @@ import { readRunningBuildSha } from "@/lib/monitoring/buildSha";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { perConnectionAdmissionController } from "@/shared/middleware/chatBodyAdmission";
 
 /**
  * GET /api/monitoring/health — System health overview
@@ -184,6 +185,7 @@ export async function GET() {
       activeSessionsByKey,
       credentialHealth,
       adaptiveAdmission,
+      chatAdmission: perConnectionAdmissionController.snapshot(),
     });
 
     healthPayloadCache = { payload, expiresAt: Date.now() + HEALTH_PAYLOAD_TTL_MS };

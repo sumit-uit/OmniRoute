@@ -77,6 +77,7 @@ import { HyperAgentExecutor } from "./hyperagent.ts";
 import { XaiExecutor } from "./xai.ts";
 import { PromptQlExecutor } from "./promptql.ts";
 import { ConolWebExecutor } from "./conol-web.ts";
+import { OutlierAIExecutor } from "./outlier-ai.ts";
 
 const executors = {
   antigravity: new AntigravityExecutor(),
@@ -219,6 +220,8 @@ const executors = {
   qw: new QwenWebExecutor(), // Alias
   "conol-web": new ConolWebExecutor(),
   cnl: new ConolWebExecutor(), // Alias
+  "outlier-ai": new OutlierAIExecutor(),
+  outlier: new OutlierAIExecutor(), // Alias
 };
 
 const defaultCache = new Map();
@@ -334,3 +337,4 @@ export { MoonshotExecutor } from "./moonshot.ts";
 export { CheaperInferenceExecutor } from "./cheaperinference.ts";
 export { PromptQlExecutor } from "./promptql.ts";
 export { ConolWebExecutor } from "./conol-web.ts";
+export { OutlierAIExecutor } from "./outlier-ai.ts";

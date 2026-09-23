@@ -241,6 +241,7 @@ function RequestQueueCard({
             />
             <NumberField
               label={t("resilienceConcurrentRequests")}
+              description={t("resilienceConcurrentRequestsDesc")}
               value={draft.concurrentRequests}
               min={1}
               onChange={(concurrentRequests) =>
@@ -281,6 +282,9 @@ function RequestQueueCard({
               <div className="text-xs text-text-muted">{t("resilienceConcurrentRequests")}</div>
               <div className="mt-1 text-sm font-semibold text-text-main">
                 {value.concurrentRequests}
+              </div>
+              <div className="mt-1 text-xs text-text-muted">
+                {t("resilienceConcurrentRequestsDesc")}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-bg-subtle p-4">

@@ -509,6 +509,19 @@ export const WEB_COOKIE_PROVIDERS = {
     authHint:
       "Use browser sign-in, or paste the full Cookie header from conol.ai. The __Secure-better-auth.session_token cookie is required.",
   },
+  "outlier-ai": {
+    id: "outlier-ai",
+    alias: "outlier",
+    name: "Outlier Playground",
+    icon: "auto_awesome",
+    color: "#6366F1",
+    textIcon: "OA",
+    website: "https://playground.outlier.ai/chat",
+    subscriptionRisk: true,
+    riskNoticeVariant: "webCookie",
+    authHint:
+      "Sign in at playground.outlier.ai/chat with Google OAuth, then open DevTools → Network → filter 'callback'. Find the /auth/callback response and copy both _session and _csrf cookies (both required). OmniRoute will handle the X-CSRF-Token header automatically.",
+  },
 };
 
 /** Resolved public site for a web-session provider (href + display host). */

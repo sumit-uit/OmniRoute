@@ -430,6 +430,6 @@ For deployments on small VPS instances (1 GB RAM or less):
 - **Disable background services** — set `OMNIROUTE_DISABLE_BACKGROUND_SERVICES=1` to skip scheduler, MCP server, and periodic maintenance tasks. See `docs/reference/ENVIRONMENT.md`.
 - **Use SQLite WAL mode** — enabled by default, reduces peak memory during concurrent reads.
 - **Cap the V8 heap** — set `OMNIROUTE_MEMORY_MB` (e.g. `512`) so the runtime does not calibrate a ceiling larger than the VM. See `docs/reference/ENVIRONMENT.md`.
-- **Limit concurrent heavy requests** — lower `OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT` (default `1`); excess requests get a retryable `503` with `Retry-After` instead of competing for memory.
+- **Limit concurrent heavy requests** — `OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT` (default `1`) caps heavyweight (long-context) requests per process; excess gets a retryable `503` with `Retry-After` and error code `chat_admission_busy`. **This is a local heap guard, not a provider rate limit.** It is **not controlled** by the dashboard's Settings → Resilience → Request Queue → Concurrent Requests setting (that governs a separate provider request queue). On small VPS, keep at `1`; increase cautiously only after validating memory headroom under load.
 - **Avoid `next build` on the VPS** — build locally and deploy the standalone output (`.next/standalone/`).
 - **Monitor with `top` / `free -m`** — OmniRoute typically uses 200-400 MB RSS at idle on a 1 GB VM.
